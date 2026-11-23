@@ -29,6 +29,10 @@ android.api = 34
 android.minapi = 24
 android.archs = arm64-v8a, armeabi-v7a
 
+# python-for-android: يستخدم فرع master المستقر (يدعم Python حتى 3.12)؛
+# الفرع develop يتطلب Python 3.14 ولا يتوافق مع الكود المُولَّد في Kivy 2.3.0.
+p4a.branch = master
+
 # هل تريد الإبقاء على الشاشة مضاءة أثناء تشغيل التطبيق؟
 android.wakelock = False
 
