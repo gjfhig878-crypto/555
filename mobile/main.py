@@ -861,11 +861,46 @@ class TimerRoot(BoxLayout):
 class ArabicTimerApp(App):
 
     def build(self):
-        self.title = ar("المؤقت والساعة")
-        self.root_widget = TimerRoot(self)
+        self.title = ar(APP_TITLE)
         self.alarm_sound = None
-        self._ensure_alarm_wav()
-        return self.root_widget
+        try:
+            self.root_widget = TimerRoot(self)
+            self._ensure_alarm_wav()
+            return self.root_widget
+        except Exception:
+            return self._build_crash_screen()
+
+    def _build_crash_screen(self):
+        import traceback
+        tb = traceback.format_exc()
+        try:
+            with open(os.path.join(self.user_data_dir, "crash.txt"), "w", encoding="utf-8") as fh:
+                fh.write(tb)
+        except Exception:
+            pass
+        from kivy.uix.scrollview import ScrollView
+        box = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(4))
+        with box.canvas.before:
+            Color(0.02, 0.02, 0.02, 1)
+            Rectangle(pos=(0, 0), size=(Window.width, Window.height))
+        header = Label(
+            size_hint=(1, None), height=dp(36),
+            color=(1, 0.8, 0.2, 1), bold=True, font_size=dp(15),
+            text="CRASH REPORT - take a screenshot and send it",
+        )
+        sv = ScrollView(size_hint=(1, 1))
+        lb = Label(
+            size_hint=(1, None),
+            font_size=dp(10), color=(0.9, 0.9, 0.9, 1),
+            halign="left", valign="top",
+            text=tb,
+        )
+        lb.bind(width=lambda inst, w: setattr(inst, "text_size", (w, None)))
+        lb.bind(texture_size=lambda inst, s: setattr(inst, "height", s[1]))
+        sv.add_widget(lb)
+        box.add_widget(header)
+        box.add_widget(sv)
+        return box
 
     # ---------- النغمة ----------
 
