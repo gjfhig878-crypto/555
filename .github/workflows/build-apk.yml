@@ -33,6 +33,7 @@ jobs:
         working-directory: mobile
         env:
           BUILDOZER_ANDROID_ACCEPT_LICENSE: "1"
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
           yes | buildozer -v android debug || buildozer -v android debug
 
