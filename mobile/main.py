@@ -14,6 +14,16 @@ import os
 import wave
 from pathlib import Path
 
+from kivy.config import Config
+
+_FONT_REGULAR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "Amiri-Regular.ttf")
+_FONT_BOLD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "Amiri-Bold.ttf")
+try:
+    if os.path.exists(_FONT_REGULAR):
+        Config.set("kivy", "default_font", ["Amiri", _FONT_REGULAR, _FONT_REGULAR, _FONT_BOLD, _FONT_BOLD])
+except Exception:
+    pass
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader

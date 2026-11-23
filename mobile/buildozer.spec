@@ -9,7 +9,7 @@ package.domain = org.gjfhig878
 
 # مسار مكتبة التطبيق الرئيسي
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,wav,json
+source.include_exts = py,png,jpg,kv,atlas,wav,json,ttf
 
 # نسخة التطبيق (تُحدَّث مع كل إصدار)
 version = 1.0.0
