@@ -16,7 +16,7 @@ version = 1.0.0
 
 # المتطلبات: kivy للواجهة، و arabic-reshaper + python-bidi لدعم تشكيل
 # الحروف العربية واتجاه RTL في Kivy.
-requirements = python3,kivy==2.3.1,arabic-reshaper,python-bidi
+requirements = python3,kivy==2.3.0,arabic-reshaper,python-bidi
 
 # (os) أي ملفات/مجلدات لا تُدرج في الحزمة
 # exclude_dirs = tests
@@ -29,9 +29,12 @@ android.api = 34
 android.minapi = 24
 android.archs = arm64-v8a, armeabi-v7a
 
-# python-for-android ثابت على master؛ إصدار 2.3.1 من Kivy مطلوب لأن
-# p4a يبني Python 3.14 افتراضياً ولا يتوافق مع الكود المُولَّد في Kivy 2.3.0.
+# python-for-android: تثبيت على إصدار مستقر يبني Python 3.11 — أحدث p4a
+# (Python 3.14) غير متوافق مع الكود المُولَّد في Kivy 2.3.0.
 p4a.branch = master
+p4a.commit = 2024.10.21
+
+android.ndk = 26b
 
 # هل تريد الإبقاء على الشاشة مضاءة أثناء تشغيل التطبيق؟
 android.wakelock = False
