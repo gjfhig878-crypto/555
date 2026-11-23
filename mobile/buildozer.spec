@@ -25,16 +25,15 @@ requirements = python3,kivy==2.3.0,arabic-reshaper,python-bidi
 orientation = portrait
 fullscreen = 0
 
-android.api = 34
+android.api = 31
 android.minapi = 24
 android.archs = arm64-v8a, armeabi-v7a
 
-# python-for-android: تثبيت على إصدار مستقر يبني Python 3.11 — أحدث p4a
-# (Python 3.14) غير متوافق مع الكود المُولَّد في Kivy 2.3.0.
+# python-for-android: تثبيت على آخر إصدار مستقر (v2024.01.21) — يبني Python 3.11،
+# وهو متوافق مع الكود المُولَّد في Kivy 2.3.0. نثبّت بالـ SHA مباشرةً لأن buildozer
+# ينسخ المستودع بـ --single-branch وقد لا تتوفر الوسوم داخل النسخة.
 p4a.branch = master
-p4a.commit = 2024.10.21
-
-android.ndk = 26b
+p4a.commit = 957a3e5f8c270f7aa648ba185e5a68c1077a798d
 
 # هل تريد الإبقاء على الشاشة مضاءة أثناء تشغيل التطبيق؟
 android.wakelock = False
