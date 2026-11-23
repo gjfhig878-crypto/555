@@ -543,7 +543,7 @@ class TimerRoot(BoxLayout):
             picker.add_widget(col)
             if i < 2:
                 sep = Label(text=":", font_size=dp(20), bold=True,
-                            size_hint=(None, 1), size=(dp(12), None))
+                            size_hint=(None, 1), width=dp(12))
                 sep.theme_color_key = "text_muted"
                 sep.color = hex_to_rgba(self.t("text_muted"))
                 picker.add_widget(sep)
