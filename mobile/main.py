@@ -120,7 +120,7 @@ class FlatButton(ButtonBehavior, Label):
         self._hover_color = self.bg_color
         for prop in ("pos", "size", "bg_color", "fg_color", "border_color", "text"):
             self.bind(**{prop: self._redraw})
-        self.bind(pressed=self._redraw)
+        self.bind(state=self._redraw)
 
     def set_scheme(self, bg: str, hover: str, fg: str, border: str = "") -> None:
         self.bg_color = bg
@@ -131,7 +131,7 @@ class FlatButton(ButtonBehavior, Label):
 
     def _redraw(self, *args) -> None:
         self.canvas.clear()
-        fill = self._hover_color if (self.pressed and self._hover_color) else self.bg_color
+        fill = self._hover_color if (self.state == "down" and self._hover_color) else self.bg_color
         radius = dp(10)
         with self.canvas:
             Color(*hex_to_rgba(fill))
@@ -224,7 +224,7 @@ class PresetChip(ButtonBehavior, BoxLayout):
         theme = THEMES[self.app_root.theme_name]
         self.canvas.clear()
         with self.canvas:
-            Color(*hex_to_rgba(theme["surface_alt"] if not self.pressed else theme["surface"]))
+            Color(*hex_to_rgba(theme["surface_alt"] if self.state != "down" else theme["surface"]))
             _round_rect(self.canvas, self.x, self.y, self.width, self.height, dp(9))
 
     def on_press(self):
