@@ -8,6 +8,7 @@
   1. المؤقت التنازلي (Countdown Timer):
      - حلقة تقدم دائرية متدرجة الألوان بحسب الوقت المتبقي.
      - ضبط مخصص للساعات والدقائق والثواني + أوقات جاهزة سريعة (بما فيها بومودورو 25 د).
+     - مؤقتات مخصصة محفوظة بالاسم (حفظ/تشغيل/حذف) وتُحفظ مع الإعدادات بين الجلسات.
      - تنبيه صوتي مدمج (نغمة جرس متعددة الترددات مولّدة برمجياً) + إمكانية التكرار التلقائي.
   2. ساعة الإيقاف / العداد التصاعدي (Stopwatch):
      - دقة عالية بدون انحراف زمني باستخدام time.perf_counter().
@@ -36,7 +37,7 @@ import tempfile
 import threading
 import time
 import tkinter as tk
-from tkinter import filedialog, font as tkfont, messagebox
+from tkinter import filedialog, font as tkfont, messagebox, simpledialog
 from typing import Callable, Optional
 import wave
 
@@ -1287,6 +1288,7 @@ class TimerDesktopApp:
     """واجهة تطبيق المؤقت التنازلي وساعة الإيقاف."""
 
     PRESETS_MINUTES = [1, 3, 5, 10, 15, 25, 45, 60]
+    MAX_CUSTOM_PRESETS = 12
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -1303,6 +1305,8 @@ class TimerDesktopApp:
         self._pulse_phase = 0
         self._after_id: Optional[str] = None
         self._last_laps_signature: tuple = ()
+        self.custom_presets: list[dict] = []
+        self.custom_preset_widgets: list[tuple[str, tk.Widget]] = []
 
         self._load_settings()
         self._detect_fonts()
@@ -1334,8 +1338,8 @@ class TimerDesktopApp:
 
     def _configure_window(self) -> None:
         self.root.title(APP_TITLE_NATIVE)
-        w, h = 560, 740
-        self.root.minsize(500, 680)
+        w, h = 560, 800
+        self.root.minsize(500, 740)
         try:
             sw = self.root.winfo_screenwidth()
             sh = self.root.winfo_screenheight()
@@ -1393,6 +1397,7 @@ class TimerDesktopApp:
                     self.active_mode = data["active_mode"]
                 last_secs = float(data.get("last_duration", 300))
                 self.countdown.set_total_seconds(last_secs)
+                self.custom_presets = self._sanitize_presets(data.get("custom_presets", []))
         except Exception:
             pass
 
@@ -1406,6 +1411,7 @@ class TimerDesktopApp:
                 "auto_repeat": self.countdown.auto_repeat,
                 "active_mode": self.active_mode,
                 "last_duration": self.countdown.total_seconds,
+                "custom_presets": self.custom_presets,
             }
             SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
@@ -1588,6 +1594,17 @@ class TimerDesktopApp:
             )
             btn.pack(side=tk.RIGHT, padx=2, expand=True)
             self.preset_buttons.append(btn)
+
+        self.lbl_custom_presets_title = tk.Label(
+            self.cd_setup_card,
+            text=self.ar.format("المؤقتات المحفوظة"),
+            font=(self.ui_font, 9, "bold"),
+        )
+        self.lbl_custom_presets_title.pack(anchor="e", pady=(4, 4))
+
+        self.custom_presets_row = tk.Frame(self.cd_setup_card)
+        self.custom_presets_row.pack(fill=tk.X, pady=(0, 8))
+        self._rebuild_custom_presets_row()
 
         # منتقي الساعات : الدقائق : الثواني
         self.picker_row = tk.Frame(self.cd_setup_card)
@@ -1887,6 +1904,27 @@ class TimerDesktopApp:
                 fg_color=t["text"], border_color=t["border"], parent_bg=t["surface"]
             )
 
+        self.lbl_custom_presets_title.configure(bg=t["surface"], fg=t["text_muted"])
+        self.custom_presets_row.configure(bg=t["surface"])
+        for kind, widget in self.custom_preset_widgets:
+            if kind == "chip":
+                widget.set_colors(
+                    bg_color=t["surface_alt"], hover_color=t["surface_hover"],
+                    fg_color=t["text"], border_color=t["border"], parent_bg=t["surface"]
+                )
+            elif kind == "delete":
+                widget.set_colors(
+                    bg_color=t["danger"], hover_color=t["danger_hover"],
+                    fg_color="#FFFFFF", border_color="", parent_bg=t["surface"]
+                )
+            elif kind == "save":
+                widget.set_colors(
+                    bg_color=t["sky"], hover_color=t["sky_hover"],
+                    fg_color="#FFFFFF", border_color="", parent_bg=t["surface"]
+                )
+            else:
+                widget.configure(bg=t["surface"], fg=t["text_dim"])
+
         self.picker_row.configure(bg=t["surface"])
         for col_lbl, btn_up, entry, btn_dn, _ in self.picker_widgets:
             col = col_lbl.master
@@ -2065,6 +2103,151 @@ class TimerDesktopApp:
         self._sync_inputs_from_countdown()
         self._save_settings()
         self._refresh_ui()
+
+    # --- المؤقتات المخصصة المحفوظة ---
+
+    def _format_duration_short(self, total_seconds: float) -> str:
+        secs = max(1, int(round(float(total_seconds))))
+        h, m, s = split_hms(secs)
+        parts: list[str] = []
+        if h:
+            parts.append(f"{h} س")
+        if m:
+            parts.append(f"{m} د")
+        if s or not parts:
+            parts.append(f"{s} ث")
+        return " و".join(parts)
+
+    def _sanitize_presets(self, raw) -> list[dict]:
+        presets: list[dict] = []
+        if not isinstance(raw, list):
+            return presets
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()[:40]
+            if not name:
+                continue
+            try:
+                seconds = int(item.get("seconds", 0))
+            except (TypeError, ValueError):
+                continue
+            seconds = max(1, min(seconds, 99 * 3600 + 59 * 60 + 59))
+            presets.append({"name": name, "seconds": seconds})
+            if len(presets) >= self.MAX_CUSTOM_PRESETS:
+                break
+        return presets
+
+    def _rebuild_custom_presets_row(self) -> None:
+        for child in self.custom_presets_row.winfo_children():
+            child.destroy()
+        self.custom_preset_widgets = []
+
+        save_btn = RoundedButton(
+            self.custom_presets_row, text="حفظ", command=self._cd_save_preset,
+            ar_helper=self.ar, width=64, height=30, radius=9,
+            font=(self.ui_font, 9, "bold"),
+        )
+        save_btn.pack(side=tk.RIGHT, padx=2)
+        self.custom_preset_widgets.append(("save", save_btn))
+
+        for idx, preset in enumerate(self.custom_presets):
+            duration = self._format_duration_short(preset["seconds"])
+            chip_text = f"{preset['name']} ({duration})"
+            chip_w = min(170, 34 + max(len(chip_text) * 7, 52))
+            chip = RoundedButton(
+                self.custom_presets_row, text=chip_text,
+                command=lambda i=idx: self._cd_apply_custom_preset(i),
+                ar_helper=self.ar, width=chip_w, height=30, radius=9,
+                font=(self.ui_font, 9, "bold"),
+            )
+            chip.pack(side=tk.RIGHT, padx=2)
+            self.custom_preset_widgets.append(("chip", chip))
+
+            delete_btn = RoundedButton(
+                self.custom_presets_row, text="✕",
+                command=lambda i=idx: self._cd_delete_custom_preset(i),
+                ar_helper=None, width=26, height=30, radius=9,
+                bg_color="#EF4444", hover_color="#DC2626", fg_color="#FFFFFF",
+                font=(self.ui_font, 9, "bold"),
+            )
+            delete_btn.pack(side=tk.RIGHT)
+            self.custom_preset_widgets.append(("delete", delete_btn))
+
+        if not self.custom_presets:
+            hint = tk.Label(
+                self.custom_presets_row,
+                text=self.ar.format("اضبط الوقت ثم اضغط + حفظ لتخزينه بالاسم"),
+                font=(self.ui_font, 8),
+            )
+            hint.pack(side=tk.RIGHT)
+            self.custom_preset_widgets.append(("hint", hint))
+
+    def _cd_save_custom_preset_value(self, name: str, seconds: int) -> tuple[bool, str]:
+        name = name.strip()[:40]
+        if not name:
+            return False, "يرجى إدخال اسم للمؤقت."
+        for preset in self.custom_presets:
+            if preset["name"] == name:
+                preset["seconds"] = seconds
+                return True, "updated"
+        if len(self.custom_presets) >= self.MAX_CUSTOM_PRESETS:
+            return False, "الحد الأقصى 12 مؤقتاً محفوظاً. احذف مؤقتاً أولاً."
+        self.custom_presets.append({"name": name, "seconds": seconds})
+        return True, "added"
+
+    def _cd_save_preset(self) -> None:
+        seconds = int(round(self.countdown.total_seconds))
+        if seconds <= 0:
+            return
+        default_name = self.cd_note_var.get().strip() or self._format_duration_short(seconds)
+        name = simpledialog.askstring(
+            APP_TITLE_NATIVE,
+            "اسم المؤقت:",
+            initialvalue=default_name,
+            parent=self.root,
+        )
+        if name is None:
+            return
+        name = name.strip()[:40]
+        if not name:
+            messagebox.showinfo(APP_TITLE_NATIVE, "يرجى إدخال اسم للمؤقت.")
+            return
+        existing = next((p for p in self.custom_presets if p["name"] == name), None)
+        if existing is not None and existing["seconds"] != seconds:
+            replace = messagebox.askyesno(
+                APP_TITLE_NATIVE,
+                f"يوجد مؤقت باسم «{name}» بمدة مختلفة. استبداله؟",
+            )
+            if not replace:
+                return
+            existing["seconds"] = seconds
+        else:
+            ok, message = self._cd_save_custom_preset_value(name, seconds)
+            if not ok:
+                messagebox.showinfo(APP_TITLE_NATIVE, message)
+                return
+        self._save_settings()
+        self._rebuild_custom_presets_row()
+
+    def _cd_apply_custom_preset(self, index: int) -> None:
+        if not (0 <= index < len(self.custom_presets)):
+            return
+        self._dismiss_alarm()
+        self.countdown.set_total_seconds(float(self.custom_presets[index]["seconds"]))
+        self._sync_inputs_from_countdown()
+        self._save_settings()
+        self._refresh_ui()
+
+    def _cd_delete_custom_preset(self, index: int) -> None:
+        if not (0 <= index < len(self.custom_presets)):
+            return
+        name = self.custom_presets[index]["name"]
+        if not messagebox.askyesno(APP_TITLE_NATIVE, f"حذف المؤقت «{name}»؟"):
+            return
+        del self.custom_presets[index]
+        self._save_settings()
+        self._rebuild_custom_presets_row()
 
     def _cd_add_minute(self) -> None:
         self._dismiss_alarm()
